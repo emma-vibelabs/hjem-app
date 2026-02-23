@@ -2,133 +2,238 @@
 <html lang="no">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#ffffff">
   <title>Hjem</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     :root {
-      --bg: #0a0a0f;
-      --card: #14141f;
-      --card-border: #1e1e2e;
-      --text: #e8e8f0;
-      --dim: #6b6b80;
-      --accent: #4f8cff;
-      --walk: #8b8ba0;
-      --metro: #e85454;
-      --tram: #4caf50;
-      --bus: #ff9800;
-      --rail: #9c27b0;
-      --green: #22c55e;
-      --radius: 14px;
+      --bg: #f5f5f7;
+      --white: #ffffff;
+      --text: #1a1a2e;
+      --text-secondary: #6b7280;
+      --text-tertiary: #9ca3af;
+      --border: #e5e7eb;
+      --accent: #2563eb;
+      --accent-light: #eff6ff;
+      --metro: #ec4c3e;
+      --tram: #00a86b;
+      --bus: #f59e0b;
+      --rail: #7c3aed;
+      --walk: #9ca3af;
+      --scooter: #00d4aa;
+      --bike: #f97316;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+      --radius: 16px;
+      --radius-sm: 10px;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100dvh;
-      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
     }
 
-    .header {
-      padding: 24px 0 12px;
-      text-align: center;
+    /* === MAP === */
+    #map {
+      width: 100%;
+      height: 38dvh;
+      min-height: 260px;
+      position: relative;
+      z-index: 1;
     }
-    .header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
+    .leaflet-control-attribution { font-size: 9px !important; opacity: 0.6; }
+    .leaflet-control-zoom { border: none !important; box-shadow: var(--shadow-md) !important; border-radius: 10px !important; overflow: hidden; }
+    .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 16px !important; color: var(--text) !important; border-bottom-color: var(--border) !important; }
+
+    /* Custom markers */
+    .marker-from, .marker-to {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      border: 3px solid white;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
     }
-    .header .route-label {
-      font-size: 13px;
-      color: var(--dim);
-      margin-top: 4px;
-    }
-    .header .route-label span {
-      color: var(--text);
-      font-weight: 500;
+    .marker-from { background: var(--accent); }
+    .marker-to { background: #10b981; }
+    .marker-scooter {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: var(--scooter);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
     }
 
-    .now-bar {
+    /* === CONTENT AREA === */
+    .content {
+      position: relative;
+      z-index: 2;
+      margin-top: -20px;
+      border-radius: 20px 20px 0 0;
+      background: var(--bg);
+      padding: 0 16px 32px;
+      min-height: 62dvh;
+    }
+    .drag-handle {
+      width: 36px; height: 4px;
+      background: #d1d5db;
+      border-radius: 2px;
+      margin: 10px auto 16px;
+    }
+
+    /* === HEADER === */
+    .route-header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 10px 0;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .route-info { flex: 1; }
+    .route-info h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--text);
+    }
+    .route-endpoints {
       font-size: 13px;
-      color: var(--dim);
+      color: var(--text-secondary);
+      margin-top: 2px;
     }
-    .now-bar .dot {
-      width: 6px; height: 6px;
-      background: var(--green);
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .trip-card {
-      background: var(--card);
-      border: 1px solid var(--card-border);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 12px;
-      transition: all 0.2s;
+    .route-endpoints strong { color: var(--text); font-weight: 600; }
+    .swap-btn {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--white);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
       cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
     }
-    .trip-card:active {
-      transform: scale(0.98);
-      background: #1a1a2a;
+    .swap-btn:active { transform: scale(0.92); background: var(--bg); }
+
+    /* === WEATHER BAR === */
+    .weather-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--white);
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      font-size: 13px;
+      color: var(--text-secondary);
     }
-    .trip-card.best {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent), 0 4px 20px rgba(79, 140, 255, 0.1);
+    .weather-bar .weather-icon { font-size: 22px; }
+    .weather-bar .weather-temp {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
     }
-    .trip-card.best::before {
-      content: 'Anbefalt';
-      display: inline-block;
-      font-size: 10px;
+    .weather-bar .weather-detail { margin-left: auto; font-size: 12px; }
+
+    /* === SECTION LABELS === */
+    .section-label {
+      font-size: 13px;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.5px;
+      color: var(--text-tertiary);
+      margin-bottom: 10px;
+    }
+
+    /* === TRIP CARDS === */
+    .trip-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1.5px solid transparent;
+    }
+    .trip-card:active { transform: scale(0.985); }
+    .trip-card.best {
+      border-color: var(--accent);
+      box-shadow: var(--shadow-md);
+    }
+    .trip-card.best .trip-badge {
+      display: inline-block;
+    }
+    .trip-badge {
+      display: none;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
       color: var(--accent);
+      background: var(--accent-light);
+      padding: 3px 8px;
+      border-radius: 6px;
       margin-bottom: 8px;
     }
 
     .trip-top {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 12px;
+      align-items: center;
+      margin-bottom: 10px;
     }
-    .trip-time {
+    .trip-times {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .trip-depart {
       font-size: 22px;
       font-weight: 700;
       letter-spacing: -0.5px;
     }
+    .trip-arrow { color: var(--text-tertiary); font-size: 14px; }
+    .trip-arrive {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .trip-meta {
+      text-align: right;
+    }
     .trip-duration {
-      font-size: 14px;
-      color: var(--dim);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .trip-countdown {
+      font-size: 12px;
+      color: var(--accent);
       font-weight: 500;
     }
 
-    .trip-legs {
+    /* Transport bar */
+    .trip-bar {
       display: flex;
       align-items: center;
-      gap: 0;
-      height: 36px;
+      height: 32px;
       border-radius: 8px;
       overflow: hidden;
-      margin-bottom: 12px;
+      gap: 2px;
     }
-    .leg-bar {
+    .bar-seg {
       height: 100%;
       display: flex;
       align-items: center;
@@ -136,138 +241,230 @@
       font-size: 11px;
       font-weight: 600;
       color: white;
-      min-width: 24px;
-      position: relative;
-      transition: all 0.3s;
+      border-radius: 6px;
+      min-width: 28px;
     }
-    .leg-bar.foot { background: var(--walk); }
-    .leg-bar.metro { background: var(--metro); }
-    .leg-bar.tram { background: var(--tram); }
-    .leg-bar.bus { background: var(--bus); }
-    .leg-bar.rail { background: var(--rail); }
-    .leg-bar .leg-icon { font-size: 14px; }
+    .bar-seg.foot { background: #e5e7eb; color: #6b7280; }
+    .bar-seg.metro { background: var(--metro); }
+    .bar-seg.tram { background: var(--tram); }
+    .bar-seg.bus { background: var(--bus); }
+    .bar-seg.rail { background: var(--rail); }
 
-    .trip-steps {
-      display: none;
-      flex-direction: column;
-      gap: 0;
-      padding-top: 4px;
+    /* Expanded details */
+    .trip-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease;
     }
-    .trip-card.expanded .trip-steps {
-      display: flex;
+    .trip-card.expanded .trip-details {
+      max-height: 600px;
     }
 
+    .step-list {
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+    }
     .step {
       display: flex;
       gap: 12px;
-      padding: 8px 0;
-      position: relative;
+      padding: 6px 0;
     }
     .step-timeline {
       display: flex;
       flex-direction: column;
       align-items: center;
-      width: 20px;
+      width: 16px;
       flex-shrink: 0;
+      padding-top: 4px;
     }
     .step-dot {
-      width: 10px; height: 10px;
+      width: 8px; height: 8px;
       border-radius: 50%;
-      border: 2px solid var(--dim);
-      background: var(--bg);
-      z-index: 1;
+      background: var(--border);
       flex-shrink: 0;
     }
-    .step-dot.transport { border-color: var(--accent); background: var(--accent); }
+    .step-dot.transport { background: var(--accent); }
     .step-line {
       flex: 1;
       width: 2px;
-      background: var(--card-border);
-      min-height: 8px;
+      background: var(--border);
+      min-height: 10px;
     }
-    .step-content {
-      flex: 1;
-      padding-bottom: 4px;
-    }
-    .step-time {
+    .step-body { flex: 1; }
+    .step-head {
+      display: flex;
+      align-items: center;
+      gap: 6px;
       font-size: 13px;
       font-weight: 600;
-      color: var(--text);
     }
-    .step-desc {
-      font-size: 12px;
-      color: var(--dim);
-      margin-top: 2px;
-    }
-    .step-mode-tag {
-      display: inline-block;
+    .step-tag {
       font-size: 10px;
       font-weight: 700;
       padding: 2px 6px;
       border-radius: 4px;
-      margin-right: 4px;
       color: white;
     }
+    .step-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 1px;
+    }
 
+    /* === MOBILITY === */
+    .mobility-section {
+      margin-top: 20px;
+    }
+    .mobility-row {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .mobility-row::-webkit-scrollbar { display: none; }
+    .mobility-card {
+      flex-shrink: 0;
+      background: var(--white);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      min-width: 150px;
+      box-shadow: var(--shadow-sm);
+    }
+    .mobility-icon { font-size: 24px; margin-bottom: 6px; }
+    .mobility-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .mobility-info {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+    .mobility-count {
+      font-size: 18px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+    .mobility-count.scooter { color: var(--scooter); }
+    .mobility-count.bike { color: var(--bike); }
+
+    /* === LOADING === */
     .loading {
       text-align: center;
-      padding: 60px 0;
-      color: var(--dim);
+      padding: 40px 0;
+      color: var(--text-secondary);
     }
-    .loading .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid var(--card-border);
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid var(--border);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
+      margin: 0 auto 10px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .error-msg {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--dim);
+    /* === WALK BANNER === */
+    .walk-banner {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-
-    .refresh-btn {
-      display: block;
-      margin: 8px auto 24px;
-      padding: 10px 24px;
-      background: var(--card);
-      border: 1px solid var(--card-border);
+    .walk-banner-icon {
+      width: 40px; height: 40px;
       border-radius: 10px;
-      color: var(--dim);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
+      background: #f0fdf4;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
     }
-    .refresh-btn:active {
-      background: #1a1a2a;
+    .walk-banner-text {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .walk-banner-text strong {
+      display: block;
+      font-size: 14px;
       color: var(--text);
     }
 
-    .footer {
-      text-align: center;
-      padding: 12px 0 24px;
-      font-size: 11px;
-      color: #333;
+    /* === LOCATION PILL === */
+    .loc-pill {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: white;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .loc-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🏠 Hjem</h1>
-    <div class="route-label">
-      <span>Ruseløkkveien 26</span> → <span>Eiriks gate 14</span>
+
+<div id="map">
+  <div class="loc-pill">
+    <div class="loc-dot"></div>
+    <span id="loc-label">Finner posisjon...</span>
+  </div>
+</div>
+
+<div class="content">
+  <div class="drag-handle"></div>
+
+  <div class="route-header">
+    <div class="route-info">
+      <h1 id="route-title">Hjem</h1>
+      <div class="route-endpoints" id="route-endpoints">
+        <strong id="from-label">Ruseløkkveien 26</strong> → <strong id="to-label">Eiriks gate 14</strong>
+      </div>
+    </div>
+    <button class="swap-btn" id="swap-btn" title="Bytt retning">⇄</button>
+  </div>
+
+  <div class="weather-bar" id="weather-bar">
+    <span class="weather-icon" id="weather-icon">☁️</span>
+    <span class="weather-temp" id="weather-temp">--°</span>
+    <span id="weather-desc">Laster vær...</span>
+    <span class="weather-detail" id="weather-detail"></span>
+  </div>
+
+  <div class="walk-banner" id="walk-banner" style="display:none">
+    <div class="walk-banner-icon">🚶</div>
+    <div class="walk-banner-text">
+      <strong id="walk-time"></strong>
+      <span id="walk-dist"></span>
     </div>
   </div>
 
-  <div class="now-bar">
-    <div class="dot"></div>
-    <span id="now-time"></span>
-  </div>
-
+  <div class="section-label">Avganger</div>
   <div id="trips-container">
     <div class="loading">
       <div class="spinner"></div>
@@ -275,196 +472,535 @@
     </div>
   </div>
 
-  <button class="refresh-btn" onclick="loadTrips()">Oppdater avganger</button>
+  <div class="mobility-section" id="mobility-section" style="display:none">
+    <div class="section-label">Mikromobilitet i nærheten</div>
+    <div class="mobility-row" id="mobility-row"></div>
+  </div>
+</div>
 
-  <div class="footer">Entur API · Emma for Simon</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const PLACES = {
+  atelier: { lat: 59.912559, lon: 10.726927, name: "Ruseløkkveien 26" },
+  hjem:    { lat: 59.912397, lon: 10.772565, name: "Eiriks gate 14" }
+};
 
-  <script>
-    const FROM = { lat: 59.912559, lon: 10.726927, name: "Ruseløkkveien 26" };
-    const TO = { lat: 59.912397, lon: 10.772565, name: "Eiriks gate 14" };
-    const API = "https://api.entur.io/journey-planner/v3/graphql";
+let fromPlace = { ...PLACES.atelier };
+let toPlace   = { ...PLACES.hjem };
+let reversed  = false;
 
-    function updateNow() {
-      const now = new Date();
-      document.getElementById("now-time").textContent =
-        `Nå: ${now.toLocaleTimeString("no", { hour: "2-digit", minute: "2-digit" })}`;
+const ENTUR    = "https://api.entur.io/journey-planner/v3/graphql";
+const ENTUR_H  = { "Content-Type": "application/json", "ET-Client-Name": "vibelabs-emma" };
+const MET_URL  = "https://api.met.no/weatherapi/locationforecast/2.0/compact";
+
+// ============================================================
+// MAP
+// ============================================================
+const map = L.map("map", {
+  zoomControl: false,
+  attributionControl: true
+}).setView([59.9125, 10.750], 14);
+
+L.control.zoom({ position: "bottomright" }).addTo(map);
+
+L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+  attribution: '© <a href="https://osm.org">OSM</a> © <a href="https://carto.com">CARTO</a>',
+  maxZoom: 19
+}).addTo(map);
+
+// Custom icon factory
+function makeIcon(cls, size = 14) {
+  return L.divIcon({
+    className: "",
+    html: `<div class="marker-${cls}" style="width:${size}px;height:${size}px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);background:${cls === "from" ? "#2563eb" : "#10b981"}"></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
+}
+
+let fromMarker = L.marker([fromPlace.lat, fromPlace.lon], { icon: makeIcon("from") }).addTo(map);
+let toMarker = L.marker([toPlace.lat, toPlace.lon], { icon: makeIcon("to") }).addTo(map);
+let routeLine = null;
+let walkFromLine = null;
+let walkToLine = null;
+let scooterMarkers = [];
+
+function fitMapToRoute() {
+  const bounds = L.latLngBounds([
+    [fromPlace.lat, fromPlace.lon],
+    [toPlace.lat, toPlace.lon]
+  ]);
+  map.fitBounds(bounds.pad(0.3));
+}
+
+async function drawWalkingRoute(from, to, color, dashArray) {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/foot/${from.lon},${from.lat};${to.lon},${to.lat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+      return L.polyline(coords, {
+        color, weight: 4, opacity: 0.7, dashArray, lineCap: "round"
+      }).addTo(map);
     }
-    updateNow();
-    setInterval(updateNow, 30000);
+  } catch (e) { console.log("OSRM error:", e); }
+  return null;
+}
 
-    const QUERY = `
-      query trip($from: Location!, $to: Location!) {
-        trip(
-          from: $from
-          to: $to
-          numTripPatterns: 6
-          modes: {
-            accessMode: foot
-            egressMode: foot
-            transportModes: [
-              { transportMode: bus }
-              { transportMode: tram }
-              { transportMode: metro }
-              { transportMode: rail }
-            ]
-          }
-        ) {
-          tripPatterns {
-            duration
-            startTime
-            endTime
-            walkDistance
-            legs {
-              mode
-              transportSubmode
-              distance
-              duration
-              expectedStartTime
-              expectedEndTime
-              fromPlace { name }
-              toPlace { name }
-              line {
-                publicCode
-                name
-              }
-            }
-          }
+async function drawTransitRoute(legs) {
+  // Clear old lines
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (walkFromLine) { map.removeLayer(walkFromLine); walkFromLine = null; }
+  if (walkToLine) { map.removeLayer(walkToLine); walkToLine = null; }
+
+  for (const leg of legs) {
+    if (leg.mode === "foot" && leg.fromPlace.name !== leg.toPlace.name) {
+      const from = { lat: leg.fromLat || fromPlace.lat, lon: leg.fromLon || fromPlace.lon };
+      const to = { lat: leg.toLat || toPlace.lat, lon: leg.toLon || toPlace.lon };
+
+      // First/last walking leg
+      if (leg === legs[0]) {
+        walkFromLine = await drawWalkingRoute(fromPlace, { lat: leg.toLat, lon: leg.toLon }, "#9ca3af", "6 8");
+      } else if (leg === legs[legs.length - 1]) {
+        walkToLine = await drawWalkingRoute({ lat: leg.fromLat, lon: leg.fromLon }, toPlace, "#9ca3af", "6 8");
+      }
+    }
+  }
+
+  // Draw transit segments
+  const transitLegs = legs.filter(l => l.mode !== "foot" && l.points);
+  if (transitLegs.length > 0) {
+    const allCoords = [];
+    for (const leg of transitLegs) {
+      const coords = leg.points.map(p => [p[0], p[1]]);
+      allCoords.push(...coords);
+    }
+    if (allCoords.length > 0) {
+      routeLine = L.polyline(allCoords, {
+        color: "#2563eb", weight: 4, opacity: 0.8, lineCap: "round"
+      }).addTo(map);
+    }
+  }
+}
+
+// ============================================================
+// WEATHER
+// ============================================================
+const WEATHER_ICONS = {
+  clearsky_day: "☀️", clearsky_night: "🌙",
+  fair_day: "🌤️", fair_night: "🌤️",
+  partlycloudy_day: "⛅", partlycloudy_night: "⛅",
+  cloudy: "☁️",
+  lightrain: "🌦️", rain: "🌧️", heavyrain: "🌧️",
+  lightrainshowers_day: "🌦️", lightrainshowers_night: "🌦️",
+  rainshowers_day: "🌧️", rainshowers_night: "🌧️",
+  lightsleet: "🌨️", sleet: "🌨️",
+  lightsnow: "🌨️", snow: "❄️", heavysnow: "❄️",
+  lightsnowshowers_day: "🌨️", lightsnowshowers_night: "🌨️",
+  snowshowers_day: "❄️", snowshowers_night: "❄️",
+  fog: "🌫️"
+};
+
+const WEATHER_NAMES = {
+  clearsky_day: "Klart", clearsky_night: "Klart",
+  fair_day: "Lettskyet", fair_night: "Lettskyet",
+  partlycloudy_day: "Delvis skyet", partlycloudy_night: "Delvis skyet",
+  cloudy: "Skyet",
+  lightrain: "Lett regn", rain: "Regn", heavyrain: "Kraftig regn",
+  lightrainshowers_day: "Lette regnbyger", lightrainshowers_night: "Lette regnbyger",
+  rainshowers_day: "Regnbyger", rainshowers_night: "Regnbyger",
+  lightsleet: "Lett sludd", sleet: "Sludd",
+  lightsnow: "Lett snø", snow: "Snø", heavysnow: "Kraftig snø",
+  lightsnowshowers_day: "Snøbyger", lightsnowshowers_night: "Snøbyger",
+  snowshowers_day: "Snøbyger", snowshowers_night: "Snøbyger",
+  fog: "Tåke"
+};
+
+async function loadWeather() {
+  try {
+    const res = await fetch(`${MET_URL}?lat=${fromPlace.lat}&lon=${fromPlace.lon}`, {
+      headers: { "User-Agent": "vibelabs-emma/1.0" }
+    });
+    const data = await res.json();
+    const now = data.properties.timeseries[0].data;
+    const details = now.instant.details;
+    const symbol = now.next_1_hours?.summary?.symbol_code || "cloudy";
+
+    document.getElementById("weather-icon").textContent = WEATHER_ICONS[symbol] || "🌤️";
+    document.getElementById("weather-temp").textContent = `${Math.round(details.air_temperature)}°`;
+    document.getElementById("weather-desc").textContent = WEATHER_NAMES[symbol] || symbol;
+
+    const precip = now.next_1_hours?.details?.precipitation_amount || 0;
+    const wind = details.wind_speed;
+    let detail = `${wind.toFixed(0)} m/s`;
+    if (precip > 0) detail += ` · ${precip} mm`;
+    document.getElementById("weather-detail").textContent = detail;
+  } catch (e) {
+    console.log("Weather error:", e);
+  }
+}
+
+// ============================================================
+// WALKING ESTIMATE
+// ============================================================
+async function loadWalkEstimate() {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/foot/${fromPlace.lon},${fromPlace.lat};${toPlace.lon},${toPlace.lat}?overview=false`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes[0]) {
+      const route = data.routes[0];
+      const mins = Math.round(route.duration / 60);
+      const km = (route.distance / 1000).toFixed(1);
+      document.getElementById("walk-time").textContent = `${mins} min å gå`;
+      document.getElementById("walk-dist").textContent = `${km} km direkte`;
+      document.getElementById("walk-banner").style.display = "flex";
+    }
+  } catch (e) { console.log("Walk error:", e); }
+}
+
+// ============================================================
+// TRIPS
+// ============================================================
+const TRIP_QUERY = `
+  query trip($from: Location!, $to: Location!) {
+    trip(from: $from, to: $to, numTripPatterns: 5,
+      modes: {
+        accessMode: foot, egressMode: foot,
+        transportModes: [
+          { transportMode: bus },
+          { transportMode: tram },
+          { transportMode: metro },
+          { transportMode: rail }
+        ]
+      }
+    ) {
+      tripPatterns {
+        duration startTime endTime walkDistance
+        legs {
+          mode transportSubmode distance duration
+          expectedStartTime expectedEndTime
+          fromPlace { name latitude longitude }
+          toPlace { name latitude longitude }
+          line { publicCode name }
+          pointsOnLink { points }
         }
       }
-    `;
-
-    function modeColor(mode) {
-      const m = mode.toLowerCase();
-      if (m === "metro") return "var(--metro)";
-      if (m === "tram") return "var(--tram)";
-      if (m === "bus") return "var(--bus)";
-      if (m === "rail") return "var(--rail)";
-      return "var(--walk)";
     }
+  }
+`;
 
-    function modeIcon(mode) {
-      const m = mode.toLowerCase();
-      if (m === "metro") return "🚇";
-      if (m === "tram") return "🚊";
-      if (m === "bus") return "🚌";
-      if (m === "rail") return "🚆";
-      return "🚶";
+function modeColor(m) {
+  m = m.toLowerCase();
+  return m === "metro" ? "var(--metro)" : m === "tram" ? "var(--tram)" : m === "bus" ? "var(--bus)" : m === "rail" ? "var(--rail)" : "var(--walk)";
+}
+function modeLabel(m) {
+  m = m.toLowerCase();
+  return m === "metro" ? "T-bane" : m === "tram" ? "Trikk" : m === "bus" ? "Buss" : m === "rail" ? "Tog" : "Gå";
+}
+function fmtTime(iso) { return new Date(iso).toLocaleTimeString("no", { hour: "2-digit", minute: "2-digit" }); }
+function fmtDur(s) { return `${Math.round(s / 60)} min`; }
+function fmtDist(m) { return m < 1000 ? `${Math.round(m)} m` : `${(m/1000).toFixed(1)} km`; }
+
+function countdown(iso) {
+  const diff = Math.round((new Date(iso) - new Date()) / 60000);
+  if (diff <= 0) return "Nå";
+  if (diff === 1) return "om 1 min";
+  return `om ${diff} min`;
+}
+
+function decodePolyline(encoded) {
+  // Google encoded polyline decoder
+  if (!encoded) return [];
+  let index = 0, lat = 0, lng = 0;
+  const coords = [];
+  while (index < encoded.length) {
+    let b, shift = 0, result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+    shift = 0; result = 0;
+    do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+    coords.push([lat / 1e5, lng / 1e5]);
+  }
+  return coords;
+}
+
+let currentTrips = [];
+
+async function loadTrips() {
+  const container = document.getElementById("trips-container");
+  container.innerHTML = '<div class="loading"><div class="spinner"></div>Finner beste rute...</div>';
+
+  try {
+    const res = await fetch(ENTUR, {
+      method: "POST",
+      headers: ENTUR_H,
+      body: JSON.stringify({
+        query: TRIP_QUERY,
+        variables: {
+          from: { coordinates: { latitude: fromPlace.lat, longitude: fromPlace.lon }, name: fromPlace.name },
+          to: { coordinates: { latitude: toPlace.lat, longitude: toPlace.lon }, name: toPlace.name }
+        }
+      })
+    });
+    const data = await res.json();
+    currentTrips = data.data.trip.tripPatterns;
+    renderTrips(currentTrips);
+
+    // Draw first trip on map
+    if (currentTrips.length > 0) {
+      const legs = currentTrips[0].legs.map(l => ({
+        ...l,
+        fromLat: l.fromPlace.latitude,
+        fromLon: l.fromPlace.longitude,
+        toLat: l.toPlace.latitude,
+        toLon: l.toPlace.longitude,
+        points: l.pointsOnLink?.points ? decodePolyline(l.pointsOnLink.points) : null
+      }));
+      drawTransitRoute(legs);
     }
+  } catch (e) {
+    container.innerHTML = `<div class="loading" style="color:#ef4444">Feil: ${e.message}</div>`;
+  }
+}
 
-    function modeLabel(mode) {
-      const m = mode.toLowerCase();
-      if (m === "metro") return "T-bane";
-      if (m === "tram") return "Trikk";
-      if (m === "bus") return "Buss";
-      if (m === "rail") return "Tog";
-      return "Gå";
-    }
+function renderTrips(patterns) {
+  const container = document.getElementById("trips-container");
+  if (!patterns || patterns.length === 0) {
+    container.innerHTML = '<div class="loading">Ingen avganger funnet.</div>';
+    return;
+  }
 
-    function formatTime(iso) {
-      return new Date(iso).toLocaleTimeString("no", { hour: "2-digit", minute: "2-digit" });
-    }
+  container.innerHTML = patterns.map((trip, i) => {
+    const dur = trip.duration;
+    const legs = trip.legs;
 
-    function formatDuration(seconds) {
-      const m = Math.round(seconds / 60);
-      return `${m} min`;
-    }
+    const barHtml = legs.map(l => {
+      const pct = Math.max(10, (l.duration / dur) * 100);
+      const cls = l.mode.toLowerCase() === "foot" ? "foot" : l.mode.toLowerCase();
+      const label = l.mode.toLowerCase() === "foot" ? "🚶" : (l.line?.publicCode || "");
+      return `<div class="bar-seg ${cls}" style="width:${pct}%">${label}</div>`;
+    }).join("");
 
-    function formatDistance(meters) {
-      if (meters < 1000) return `${Math.round(meters)} m`;
-      return `${(meters / 1000).toFixed(1)} km`;
-    }
-
-    function renderTrips(patterns) {
-      const container = document.getElementById("trips-container");
-
-      if (!patterns || patterns.length === 0) {
-        container.innerHTML = '<div class="error-msg">Ingen avganger funnet.</div>';
-        return;
-      }
-
-      container.innerHTML = patterns.map((trip, i) => {
-        const totalDur = trip.duration;
-        const legs = trip.legs;
-
-        const barsHtml = legs.map(leg => {
-          const pct = Math.max(12, (leg.duration / totalDur) * 100);
-          const cls = leg.mode.toLowerCase() === "foot" ? "foot" : leg.mode.toLowerCase();
-          const label = leg.mode.toLowerCase() === "foot"
-            ? "🚶"
-            : (leg.line ? leg.line.publicCode : modeIcon(leg.mode));
-          return `<div class="leg-bar ${cls}" style="width:${pct}%"><span class="leg-icon">${label}</span></div>`;
-        }).join("");
-
-        const stepsHtml = legs.map((leg, li) => {
-          const isTransport = leg.mode.toLowerCase() !== "foot";
-          const tagColor = modeColor(leg.mode);
-          const desc = isTransport
-            ? `<span class="step-mode-tag" style="background:${tagColor}">${modeLabel(leg.mode)} ${leg.line ? leg.line.publicCode : ""}</span> ${leg.fromPlace.name} → ${leg.toPlace.name}`
-            : `Gå ${formatDistance(leg.distance)} til ${leg.toPlace.name}`;
-
-          return `
-            <div class="step">
-              <div class="step-timeline">
-                <div class="step-dot ${isTransport ? "transport" : ""}"></div>
-                ${li < legs.length - 1 ? '<div class="step-line"></div>' : ''}
-              </div>
-              <div class="step-content">
-                <div class="step-time">${formatTime(leg.expectedStartTime)} – ${formatTime(leg.expectedEndTime)}</div>
-                <div class="step-desc">${desc} · ${formatDuration(leg.duration)}</div>
-              </div>
-            </div>
-          `;
-        }).join("");
-
-        return `
-          <div class="trip-card ${i === 0 ? "best" : ""}" onclick="this.classList.toggle('expanded')">
-            <div class="trip-top">
-              <div class="trip-time">${formatTime(trip.startTime)} → ${formatTime(trip.endTime)}</div>
-              <div class="trip-duration">${formatDuration(totalDur)}</div>
-            </div>
-            <div class="trip-legs">${barsHtml}</div>
-            <div class="trip-steps">${stepsHtml}</div>
+    const stepsHtml = legs.map((l, li) => {
+      const isT = l.mode.toLowerCase() !== "foot";
+      const tagBg = modeColor(l.mode);
+      const desc = isT
+        ? `<span class="step-tag" style="background:${tagBg}">${modeLabel(l.mode)} ${l.line?.publicCode || ""}</span> ${l.fromPlace.name} → ${l.toPlace.name}`
+        : `Gå ${fmtDist(l.distance)}`;
+      return `
+        <div class="step">
+          <div class="step-timeline">
+            <div class="step-dot ${isT ? "transport" : ""}"></div>
+            ${li < legs.length - 1 ? '<div class="step-line"></div>' : ""}
           </div>
-        `;
-      }).join("");
-    }
+          <div class="step-body">
+            <div class="step-head">${fmtTime(l.expectedStartTime)} ${desc}</div>
+            <div class="step-sub">${fmtDur(l.duration)} ${isT ? "· " + l.line?.name : "til " + l.toPlace.name}</div>
+          </div>
+        </div>`;
+    }).join("");
 
-    async function loadTrips() {
-      const container = document.getElementById("trips-container");
-      container.innerHTML = '<div class="loading"><div class="spinner"></div>Finner beste rute...</div>';
+    return `
+      <div class="trip-card ${i === 0 ? "best" : ""}" onclick="this.classList.toggle('expanded')">
+        <div class="trip-badge">Anbefalt</div>
+        <div class="trip-top">
+          <div class="trip-times">
+            <span class="trip-depart">${fmtTime(trip.startTime)}</span>
+            <span class="trip-arrow">→</span>
+            <span class="trip-arrive">${fmtTime(trip.endTime)}</span>
+          </div>
+          <div class="trip-meta">
+            <div class="trip-duration">${fmtDur(dur)}</div>
+            <div class="trip-countdown">${countdown(trip.startTime)}</div>
+          </div>
+        </div>
+        <div class="trip-bar">${barHtml}</div>
+        <div class="trip-details">
+          <div class="step-list">${stepsHtml}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
 
-      try {
-        const res = await fetch(API, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "ET-Client-Name": "vibelabs-emma"
-          },
-          body: JSON.stringify({
-            query: QUERY,
-            variables: {
-              from: {
-                coordinates: { latitude: FROM.lat, longitude: FROM.lon },
-                name: FROM.name
-              },
-              to: {
-                coordinates: { latitude: TO.lat, longitude: TO.lon },
-                name: TO.name
-              }
-            }
-          })
-        });
-        const data = await res.json();
-        renderTrips(data.data.trip.tripPatterns);
-      } catch (e) {
-        container.innerHTML = `<div class="error-msg">Feil: ${e.message}<br>Prøv igjen.</div>`;
+// ============================================================
+// MOBILITY — Scooters & Bikes
+// ============================================================
+async function loadMobility() {
+  const row = document.getElementById("mobility-row");
+  const section = document.getElementById("mobility-section");
+
+  const providers = [
+    { id: "voioslo", name: "Voi", icon: "🛴", type: "scooter" },
+    { id: "boltoslo", name: "Bolt", icon: "⚡", type: "scooter" },
+    { id: "rydeoslo", name: "Ryde", icon: "🛴", type: "scooter" },
+  ];
+
+  const results = [];
+
+  for (const p of providers) {
+    try {
+      const res = await fetch(
+        `https://api.entur.io/mobility/v2/gbfs/v2/${p.id}/free_bike_status`,
+        { headers: { "ET-Client-Name": "vibelabs-emma" } }
+      );
+      const data = await res.json();
+      const bikes = data.data.bikes || [];
+      let nearby = 0;
+      let closestDist = Infinity;
+
+      for (const b of bikes) {
+        const dlat = b.lat - fromPlace.lat;
+        const dlon = b.lon - fromPlace.lon;
+        const dist = Math.sqrt(dlat * dlat + dlon * dlon) * 111000;
+        if (dist < 500) {
+          nearby++;
+          if (dist < closestDist) closestDist = dist;
+        }
       }
 
-      updateNow();
+      if (nearby > 0) {
+        results.push({
+          ...p,
+          count: nearby,
+          closest: Math.round(closestDist)
+        });
+      }
+    } catch (e) { console.log(`Mobility error (${p.id}):`, e); }
+  }
+
+  // Bysykkel
+  try {
+    const [infoRes, statusRes] = await Promise.all([
+      fetch("https://api.entur.io/mobility/v2/gbfs/v3/oslobysykkel/station_information", { headers: { "ET-Client-Name": "vibelabs-emma" } }),
+      fetch("https://api.entur.io/mobility/v2/gbfs/v3/oslobysykkel/station_status", { headers: { "ET-Client-Name": "vibelabs-emma" } })
+    ]);
+    const info = await infoRes.json();
+    const status = await statusRes.json();
+
+    const stationMap = {};
+    for (const s of info.data.stations) stationMap[s.station_id] = s;
+
+    let nearbyBikes = 0;
+    let closestDist = Infinity;
+    for (const s of status.data.stations) {
+      const si = stationMap[s.station_id];
+      if (!si) continue;
+      const dlat = si.lat - fromPlace.lat;
+      const dlon = si.lon - fromPlace.lon;
+      const dist = Math.sqrt(dlat * dlat + dlon * dlon) * 111000;
+      if (dist < 600 && s.num_vehicles_available > 0) {
+        nearbyBikes += s.num_vehicles_available;
+        if (dist < closestDist) closestDist = dist;
+      }
+    }
+    if (nearbyBikes > 0) {
+      results.push({ id: "oslobysykkel", name: "Bysykkel", icon: "🚲", type: "bike", count: nearbyBikes, closest: Math.round(closestDist) });
+    }
+  } catch (e) { console.log("Bysykkel error:", e); }
+
+  if (results.length > 0) {
+    section.style.display = "block";
+    row.innerHTML = results.map(r => `
+      <div class="mobility-card">
+        <div class="mobility-icon">${r.icon}</div>
+        <div class="mobility-name">${r.name}</div>
+        <div class="mobility-count ${r.type}">${r.count}</div>
+        <div class="mobility-info">innen 500m · ${r.closest}m nærmest</div>
+      </div>
+    `).join("");
+  }
+}
+
+// ============================================================
+// SWAP / REVERSE
+// ============================================================
+document.getElementById("swap-btn").addEventListener("click", () => {
+  reversed = !reversed;
+  const temp = { ...fromPlace };
+  fromPlace = { ...toPlace };
+  toPlace = { ...temp };
+
+  document.getElementById("from-label").textContent = fromPlace.name;
+  document.getElementById("to-label").textContent = toPlace.name;
+  document.getElementById("route-title").textContent = reversed ? "Til atelieret" : "Hjem";
+
+  fromMarker.setLatLng([fromPlace.lat, fromPlace.lon]);
+  toMarker.setLatLng([toPlace.lat, toPlace.lon]);
+
+  // Animate swap button
+  const btn = document.getElementById("swap-btn");
+  btn.style.transform = "rotate(180deg)";
+  setTimeout(() => btn.style.transform = "", 300);
+
+  loadTrips();
+  loadWeather();
+  loadWalkEstimate();
+  loadMobility();
+});
+
+// ============================================================
+// GEOLOCATION
+// ============================================================
+function initGeolocation() {
+  if (!navigator.geolocation) return;
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    document.getElementById("loc-label").textContent = `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+
+    // If we're close to one of the places, note it
+    const distAtelier = Math.sqrt((lat - PLACES.atelier.lat) ** 2 + (lon - PLACES.atelier.lon) ** 2) * 111000;
+    const distHjem = Math.sqrt((lat - PLACES.hjem.lat) ** 2 + (lon - PLACES.hjem.lon) ** 2) * 111000;
+
+    if (distAtelier < 300) {
+      document.getElementById("loc-label").textContent = "Ved atelieret";
+    } else if (distHjem < 300) {
+      document.getElementById("loc-label").textContent = "Hjemme";
+    } else {
+      document.getElementById("loc-label").textContent = `${Math.round(Math.min(distAtelier, distHjem))}m unna`;
     }
 
-    loadTrips();
-    setInterval(loadTrips, 60000);
-  </script>
+    // Add user location marker
+    L.circleMarker([lat, lon], {
+      radius: 6, fillColor: "#2563eb", fillOpacity: 1,
+      color: "white", weight: 2
+    }).addTo(map);
+  }, () => {
+    document.getElementById("loc-label").textContent = "Posisjon utilgjengelig";
+  }, { enableHighAccuracy: true });
+}
+
+// ============================================================
+// COUNTDOWN UPDATER
+// ============================================================
+function updateCountdowns() {
+  document.querySelectorAll(".trip-countdown").forEach((el, i) => {
+    if (currentTrips[i]) {
+      el.textContent = countdown(currentTrips[i].startTime);
+    }
+  });
+}
+
+// ============================================================
+// INIT
+// ============================================================
+fitMapToRoute();
+initGeolocation();
+loadWeather();
+loadWalkEstimate();
+loadTrips();
+loadMobility();
+
+// Auto-refresh
+setInterval(updateCountdowns, 15000);
+setInterval(loadTrips, 60000);
+setInterval(loadMobility, 120000);
+</script>
 </body>
 </html>
