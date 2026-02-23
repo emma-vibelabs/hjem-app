@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Hjem</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg: #0a0a0f;
+      --card: #14141f;
+      --card-border: #1e1e2e;
+      --text: #e8e8f0;
+      --dim: #6b6b80;
+      --accent: #4f8cff;
+      --walk: #8b8ba0;
+      --metro: #e85454;
+      --tram: #4caf50;
+      --bus: #ff9800;
+      --rail: #9c27b0;
+      --green: #22c55e;
+      --radius: 14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .header {
+      padding: 24px 0 12px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .header .route-label {
+      font-size: 13px;
+      color: var(--dim);
+      margin-top: 4px;
+    }
+    .header .route-label span {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .now-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 0;
+      font-size: 13px;
+      color: var(--dim);
+    }
+    .now-bar .dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .trip-card {
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .trip-card:active {
+      transform: scale(0.98);
+      background: #1a1a2a;
+    }
+    .trip-card.best {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), 0 4px 20px rgba(79, 140, 255, 0.1);
+    }
+    .trip-card.best::before {
+      content: 'Anbefalt';
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .trip-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .trip-time {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .trip-duration {
+      font-size: 14px;
+      color: var(--dim);
+      font-weight: 500;
+    }
+
+    .trip-legs {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 36px;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .leg-bar {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      min-width: 24px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .leg-bar.foot { background: var(--walk); }
+    .leg-bar.metro { background: var(--metro); }
+    .leg-bar.tram { background: var(--tram); }
+    .leg-bar.bus { background: var(--bus); }
+    .leg-bar.rail { background: var(--rail); }
+    .leg-bar .leg-icon { font-size: 14px; }
+
+    .trip-steps {
+      display: none;
+      flex-direction: column;
+      gap: 0;
+      padding-top: 4px;
+    }
+    .trip-card.expanded .trip-steps {
+      display: flex;
+    }
+
+    .step {
+      display: flex;
+      gap: 12px;
+      padding: 8px 0;
+      position: relative;
+    }
+    .step-timeline {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 20px;
+      flex-shrink: 0;
+    }
+    .step-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      border: 2px solid var(--dim);
+      background: var(--bg);
+      z-index: 1;
+      flex-shrink: 0;
+    }
+    .step-dot.transport { border-color: var(--accent); background: var(--accent); }
+    .step-line {
+      flex: 1;
+      width: 2px;
+      background: var(--card-border);
+      min-height: 8px;
+    }
+    .step-content {
+      flex: 1;
+      padding-bottom: 4px;
+    }
+    .step-time {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .step-desc {
+      font-size: 12px;
+      color: var(--dim);
+      margin-top: 2px;
+    }
+    .step-mode-tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-right: 4px;
+      color: white;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--dim);
+    }
+    .loading .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--card-border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-msg {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--dim);
+    }
+
+    .refresh-btn {
+      display: block;
+      margin: 8px auto 24px;
+      padding: 10px 24px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--dim);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .refresh-btn:active {
+      background: #1a1a2a;
+      color: var(--text);
+    }
+
+    .footer {
+      text-align: center;
+      padding: 12px 0 24px;
+      font-size: 11px;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🏠 Hjem</h1>
+    <div class="route-label">
+      <span>Ruseløkkveien 26</span> → <span>Eiriks gate 14</span>
+    </div>
+  </div>
+
+  <div class="now-bar">
+    <div class="dot"></div>
+    <span id="now-time"></span>
+  </div>
+
+  <div id="trips-container">
+    <div class="loading">
+      <div class="spinner"></div>
+      Finner beste rute...
+    </div>
+  </div>
+
+  <button class="refresh-btn" onclick="loadTrips()">Oppdater avganger</button>
+
+  <div class="footer">Entur API · Emma for Simon</div>
+
+  <script>
+    const FROM = { lat: 59.912559, lon: 10.726927, name: "Ruseløkkveien 26" };
+    const TO = { lat: 59.912397, lon: 10.772565, name: "Eiriks gate 14" };
+    const API = "https://api.entur.io/journey-planner/v3/graphql";
+
+    function updateNow() {
+      const now = new Date();
+      document.getElementById("now-time").textContent =
+        `Nå: ${now.toLocaleTimeString("no", { hour: "2-digit", minute: "2-digit" })}`;
+    }
+    updateNow();
+    setInterval(updateNow, 30000);
+
+    const QUERY = `
+      query trip($from: Location!, $to: Location!) {
+        trip(
+          from: $from
+          to: $to
+          numTripPatterns: 6
+          modes: {
+            accessMode: foot
+            egressMode: foot
+            transportModes: [
+              { transportMode: bus }
+              { transportMode: tram }
+              { transportMode: metro }
+              { transportMode: rail }
+            ]
+          }
+        ) {
+          tripPatterns {
+            duration
+            startTime
+            endTime
+            walkDistance
+            legs {
+              mode
+              transportSubmode
+              distance
+              duration
+              expectedStartTime
+              expectedEndTime
+              fromPlace { name }
+              toPlace { name }
+              line {
+                publicCode
+                name
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    function modeColor(mode) {
+      const m = mode.toLowerCase();
+      if (m === "metro") return "var(--metro)";
+      if (m === "tram") return "var(--tram)";
+      if (m === "bus") return "var(--bus)";
+      if (m === "rail") return "var(--rail)";
+      return "var(--walk)";
+    }
+
+    function modeIcon(mode) {
+      const m = mode.toLowerCase();
+      if (m === "metro") return "🚇";
+      if (m === "tram") return "🚊";
+      if (m === "bus") return "🚌";
+      if (m === "rail") return "🚆";
+      return "🚶";
+    }
+
+    function modeLabel(mode) {
+      const m = mode.toLowerCase();
+      if (m === "metro") return "T-bane";
+      if (m === "tram") return "Trikk";
+      if (m === "bus") return "Buss";
+      if (m === "rail") return "Tog";
+      return "Gå";
+    }
+
+    function formatTime(iso) {
+      return new Date(iso).toLocaleTimeString("no", { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function formatDuration(seconds) {
+      const m = Math.round(seconds / 60);
+      return `${m} min`;
+    }
+
+    function formatDistance(meters) {
+      if (meters < 1000) return `${Math.round(meters)} m`;
+      return `${(meters / 1000).toFixed(1)} km`;
+    }
+
+    function renderTrips(patterns) {
+      const container = document.getElementById("trips-container");
+
+      if (!patterns || patterns.length === 0) {
+        container.innerHTML = '<div class="error-msg">Ingen avganger funnet.</div>';
+        return;
+      }
+
+      container.innerHTML = patterns.map((trip, i) => {
+        const totalDur = trip.duration;
+        const legs = trip.legs;
+
+        const barsHtml = legs.map(leg => {
+          const pct = Math.max(12, (leg.duration / totalDur) * 100);
+          const cls = leg.mode.toLowerCase() === "foot" ? "foot" : leg.mode.toLowerCase();
+          const label = leg.mode.toLowerCase() === "foot"
+            ? "🚶"
+            : (leg.line ? leg.line.publicCode : modeIcon(leg.mode));
+          return `<div class="leg-bar ${cls}" style="width:${pct}%"><span class="leg-icon">${label}</span></div>`;
+        }).join("");
+
+        const stepsHtml = legs.map((leg, li) => {
+          const isTransport = leg.mode.toLowerCase() !== "foot";
+          const tagColor = modeColor(leg.mode);
+          const desc = isTransport
+            ? `<span class="step-mode-tag" style="background:${tagColor}">${modeLabel(leg.mode)} ${leg.line ? leg.line.publicCode : ""}</span> ${leg.fromPlace.name} → ${leg.toPlace.name}`
+            : `Gå ${formatDistance(leg.distance)} til ${leg.toPlace.name}`;
+
+          return `
+            <div class="step">
+              <div class="step-timeline">
+                <div class="step-dot ${isTransport ? "transport" : ""}"></div>
+                ${li < legs.length - 1 ? '<div class="step-line"></div>' : ''}
+              </div>
+              <div class="step-content">
+                <div class="step-time">${formatTime(leg.expectedStartTime)} – ${formatTime(leg.expectedEndTime)}</div>
+                <div class="step-desc">${desc} · ${formatDuration(leg.duration)}</div>
+              </div>
+            </div>
+          `;
+        }).join("");
+
+        return `
+          <div class="trip-card ${i === 0 ? "best" : ""}" onclick="this.classList.toggle('expanded')">
+            <div class="trip-top">
+              <div class="trip-time">${formatTime(trip.startTime)} → ${formatTime(trip.endTime)}</div>
+              <div class="trip-duration">${formatDuration(totalDur)}</div>
+            </div>
+            <div class="trip-legs">${barsHtml}</div>
+            <div class="trip-steps">${stepsHtml}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function loadTrips() {
+      const container = document.getElementById("trips-container");
+      container.innerHTML = '<div class="loading"><div class="spinner"></div>Finner beste rute...</div>';
+
+      try {
+        const res = await fetch(API, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "ET-Client-Name": "vibelabs-emma"
+          },
+          body: JSON.stringify({
+            query: QUERY,
+            variables: {
+              from: {
+                coordinates: { latitude: FROM.lat, longitude: FROM.lon },
+                name: FROM.name
+              },
+              to: {
+                coordinates: { latitude: TO.lat, longitude: TO.lon },
+                name: TO.name
+              }
+            }
+          })
+        });
+        const data = await res.json();
+        renderTrips(data.data.trip.tripPatterns);
+      } catch (e) {
+        container.innerHTML = `<div class="error-msg">Feil: ${e.message}<br>Prøv igjen.</div>`;
+      }
+
+      updateNow();
+    }
+
+    loadTrips();
+    setInterval(loadTrips, 60000);
+  </script>
+</body>
+</html>
