@@ -54,6 +54,8 @@
       z-index: 1;
     }
     .leaflet-control-attribution { font-size: 9px !important; opacity: 0.6; }
+    .leaflet-popup-content-wrapper { border-radius: 10px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important; }
+    .leaflet-popup-content { margin: 10px 14px !important; font-family: 'Inter', system-ui, sans-serif; font-size: 12px; line-height: 1.5; }
     .leaflet-control-zoom { border: none !important; box-shadow: var(--shadow-md) !important; border-radius: 10px !important; overflow: hidden; }
     .leaflet-control-zoom a { width: 36px !important; height: 36px !important; line-height: 36px !important; font-size: 16px !important; color: var(--text) !important; border-bottom-color: var(--border) !important; }
 
@@ -526,7 +528,27 @@ let toMarker = L.marker([toPlace.lat, toPlace.lon], { icon: makeIcon("to") }).ad
 let routeLine = null;
 let walkFromLine = null;
 let walkToLine = null;
-let scooterMarkers = [];
+let mobilityLayer = L.layerGroup().addTo(map);
+
+function scooterIcon(provider) {
+  const colors = { Voi: "#f74c6f", Bolt: "#34d399", Ryde: "#8b5cf6" };
+  const bg = colors[provider] || "#00d4aa";
+  return L.divIcon({
+    className: "",
+    html: `<div style="width:18px;height:18px;border-radius:50%;background:${bg};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:9px;">🛴</div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9]
+  });
+}
+
+function bikeStationIcon(count) {
+  return L.divIcon({
+    className: "",
+    html: `<div style="min-width:22px;height:22px;border-radius:11px;background:#f97316;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:white;padding:0 4px;">${count}</div>`,
+    iconSize: [22, 22],
+    iconAnchor: [11, 11]
+  });
+}
 
 function fitMapToRoute() {
   const bounds = L.latLngBounds([
@@ -834,6 +856,7 @@ function renderTrips(patterns) {
 async function loadMobility() {
   const row = document.getElementById("mobility-row");
   const section = document.getElementById("mobility-section");
+  mobilityLayer.clearLayers();
 
   const providers = [
     { id: "voioslo", name: "Voi", icon: "🛴", type: "scooter" },
@@ -842,6 +865,7 @@ async function loadMobility() {
   ];
 
   const results = [];
+  const MAX_MARKERS_PER_PROVIDER = 25; // Cap to avoid clutter
 
   for (const p of providers) {
     try {
@@ -853,6 +877,7 @@ async function loadMobility() {
       const bikes = data.data.bikes || [];
       let nearby = 0;
       let closestDist = Infinity;
+      const nearbyVehicles = [];
 
       for (const b of bikes) {
         const dlat = b.lat - fromPlace.lat;
@@ -861,20 +886,27 @@ async function loadMobility() {
         if (dist < 500) {
           nearby++;
           if (dist < closestDist) closestDist = dist;
+          nearbyVehicles.push({ lat: b.lat, lon: b.lon, dist, range: b.current_range_meters });
         }
       }
 
       if (nearby > 0) {
-        results.push({
-          ...p,
-          count: nearby,
-          closest: Math.round(closestDist)
-        });
+        results.push({ ...p, count: nearby, closest: Math.round(closestDist) });
+
+        // Add markers for closest scooters
+        nearbyVehicles.sort((a, b) => a.dist - b.dist);
+        const toShow = nearbyVehicles.slice(0, MAX_MARKERS_PER_PROVIDER);
+        for (const v of toShow) {
+          const rangeKm = v.range ? (v.range / 1000).toFixed(0) : "?";
+          const m = L.marker([v.lat, v.lon], { icon: scooterIcon(p.name) })
+            .bindPopup(`<b>${p.name}</b><br>${Math.round(v.dist)}m unna<br>Rekkevidde: ${rangeKm} km`, { className: "mobility-popup" });
+          mobilityLayer.addLayer(m);
+        }
       }
     } catch (e) { console.log(`Mobility error (${p.id}):`, e); }
   }
 
-  // Bysykkel
+  // Bysykkel — stations med tilgjengelige sykler
   try {
     const [infoRes, statusRes] = await Promise.all([
       fetch("https://api.entur.io/mobility/v2/gbfs/v3/oslobysykkel/station_information", { headers: { "ET-Client-Name": "vibelabs-emma" } }),
@@ -888,17 +920,39 @@ async function loadMobility() {
 
     let nearbyBikes = 0;
     let closestDist = Infinity;
+    const nearbyStations = [];
+
     for (const s of status.data.stations) {
       const si = stationMap[s.station_id];
       if (!si) continue;
       const dlat = si.lat - fromPlace.lat;
       const dlon = si.lon - fromPlace.lon;
       const dist = Math.sqrt(dlat * dlat + dlon * dlon) * 111000;
-      if (dist < 600 && s.num_vehicles_available > 0) {
-        nearbyBikes += s.num_vehicles_available;
-        if (dist < closestDist) closestDist = dist;
+      if (dist < 800) {
+        const avail = s.num_vehicles_available;
+        if (avail > 0) {
+          nearbyBikes += avail;
+          if (dist < closestDist) closestDist = dist;
+        }
+        // Show station on map even if empty (but style differently)
+        nearbyStations.push({
+          lat: si.lat, lon: si.lon, dist,
+          name: si.name?.[0]?.text || "Stasjon",
+          available: avail,
+          docks: s.num_docks_available
+        });
       }
     }
+
+    // Add station markers
+    for (const st of nearbyStations) {
+      if (st.available > 0) {
+        const m = L.marker([st.lat, st.lon], { icon: bikeStationIcon(st.available) })
+          .bindPopup(`<b>🚲 ${st.name}</b><br>${st.available} sykler ledig<br>${st.docks} plasser ledig<br>${Math.round(st.dist)}m unna`, { className: "mobility-popup" });
+        mobilityLayer.addLayer(m);
+      }
+    }
+
     if (nearbyBikes > 0) {
       results.push({ id: "oslobysykkel", name: "Bysykkel", icon: "🚲", type: "bike", count: nearbyBikes, closest: Math.round(closestDist) });
     }
